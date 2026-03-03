@@ -96,9 +96,20 @@ DOCUMENTATION = '''
           - Optional list of Jinja2 expressions to compose C(inventory_hostname).
           - The first non-empty rendered value is used.
           - When unset, C(display_name) is used.
-          - If a rendered hostname is not unique, parsing fails with an error.
+          - If C(strict) is true and C(hostnames) is configured, duplicate
+            rendered hostnames are treated as errors.
         type: list
         elements: str
+      strict:
+        description:
+          - If true, invalid compose/group expressions are treated as fatal errors.
+          - If true and C(hostnames) is configured, duplicate rendered hostnames
+            are treated as fatal errors.
+          - If false, invalid expressions are skipped and duplicate rendered
+            hostnames follow legacy overwrite behavior.
+        required: false
+        type: bool
+        default: false
       get_patches:
         description: Fetch patching information for each system.
         required: false
@@ -479,16 +490,17 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
             patching = {}
 
             for system in patching_results:
-                display_name = system['attributes']['display_name']
-                patching[display_name] = {}
+                if 'id' not in system:
+                    continue
+                patching[system['id']] = {}
                 for attribute in system['attributes']:
                     if attribute != 'display_name':
-                        patching[display_name][attribute] = system['attributes'][attribute]
+                        patching[system['id']][attribute] = system['attributes'][attribute]
 
         for host in results:
             host_name = self._get_hostname(host, hostnames=hostnames, strict=strict)
             existing = seen_hostnames.get(host_name)
-            if existing is not None and existing != host['id']:
+            if hostnames and strict and existing is not None and existing != host['id']:
                 raise AnsibleError(
                     'Duplicate inventory hostname "%s" derived from host IDs "%s" and "%s". '
                     'Adjust the "hostnames" expressions to ensure uniqueness.' %
@@ -504,9 +516,9 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                     self.inventory.set_variable(host_name, 'ansible_host', host[item])
 
             if get_patching_info:
-                if host['display_name'] in patching.keys():
+                if host['id'] in patching:
                     self.inventory.set_variable(host_name, vars_prefix + 'patching',
-                                                patching[host['display_name']])
+                                                patching[host['id']])
                 else:
                     self.inventory.set_variable(host_name, vars_prefix + 'patching', {'enabled': False})
 

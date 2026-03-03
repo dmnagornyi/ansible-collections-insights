@@ -96,20 +96,9 @@ DOCUMENTATION = '''
           - Optional list of Jinja2 expressions to compose C(inventory_hostname).
           - The first non-empty rendered value is used.
           - When unset, C(display_name) is used.
-          - If C(strict) is true and C(hostnames) is configured, duplicate
-            rendered hostnames are treated as errors.
+          - If a rendered hostname is not unique, parsing fails with an error.
         type: list
         elements: str
-      strict:
-        description:
-          - If true, invalid compose/group expressions are treated as fatal errors.
-          - If true and C(hostnames) is configured, duplicate rendered hostnames
-            are treated as fatal errors.
-          - If false, invalid expressions are skipped and duplicate rendered
-            hostnames follow legacy overwrite behavior.
-        required: false
-        type: bool
-        default: false
       get_patches:
         description: Fetch patching information for each system.
         required: false
@@ -500,7 +489,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
         for host in results:
             host_name = self._get_hostname(host, hostnames=hostnames, strict=strict)
             existing = seen_hostnames.get(host_name)
-            if hostnames and strict and existing is not None and existing != host['id']:
+            if existing is not None and existing != host['id']:
                 raise AnsibleError(
                     'Duplicate inventory hostname "%s" derived from host IDs "%s" and "%s". '
                     'Adjust the "hostnames" expressions to ensure uniqueness.' %

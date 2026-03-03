@@ -11,11 +11,6 @@ are purposely not mentioned here.
   with Jinja expressions (same behavior style as other constructed inventory
   plugins: first non-empty expression wins)
 
-### Changed
-- `inventory` plugin: explicitly document `strict`, and gate duplicate-hostname
-  failures behind `strict: true` when `hostnames` is configured; default
-  behavior remains legacy overwrite
-
 ### Fixed
 - `inventory` plugin: map patching data by system id (instead of display name)
   so systems sharing the same display name receive the correct patching data
